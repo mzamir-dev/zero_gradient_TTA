@@ -1,0 +1,162 @@
+# ============================================================
+# Base Configuration — CTTA-OWOD
+# ============================================================
+
+# ── Experiment
+experiment:
+  name: "ctta_owod_v1"
+  seed: 42
+  output_dir: "./outputs"
+  log_dir: "./logs"
+
+# ── Datasets used for training
+train_datasets:
+  - name: "antiuav"
+    root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/Anti-UAV-Yolo"
+    format: "yolo"
+    split: "train"
+    frame_stride: 10
+
+  - name: "antiuav410"
+    root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/Anti-UAV410"
+    format: "antiuav410"
+    split: "train"
+    frame_stride: 10
+
+  - name: "cst_antiuav"
+    root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/CST-AntiUAV/CST-AntiUAV"
+    format: "cst"
+    split: "train"
+    frame_stride: 10
+
+val_datasets:
+  - name: "antiuav"
+    root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/Anti-UAV-Yolo"
+    format: "yolo"
+    split: "val"
+    frame_stride: 10
+
+  - name: "antiuav410"
+    root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/Anti-UAV410"
+    format: "antiuav410"
+    split: "val"
+    frame_stride: 10
+
+  - name: "cst_antiuav"
+    root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/CST-AntiUAV/CST-AntiUAV"
+    format: "cst"
+    split: "val"
+    frame_stride: 10
+
+# ── Classes
+# Anti-UAV and Anti-UAV410 are single-class (UAV=0)
+# CST-AntiUAV may introduce new classes → open-world detection kicks in
+num_known_classes: 1
+class_names: ["UAV"]
+
+# ── Model
+model:
+  backbone: "resnet50"        # resnet50 | resnet101 | mobilenetv3
+  pretrained: true
+  frozen_backbone: false       # backbone frozen; only adapters trained
+  feature_dim: 256
+  fpn_out_channels: 256
+
+  # TTA adapter
+  tta:
+    adapter_dim: 64
+    ema_decay: 0.999
+    entropy_weight: 1.0
+    consistency_weight: 0.5
+    temporal_weight: 0.3
+    lr: 1.0e-3
+
+  # Open-world / energy detector
+  energy:
+    hidden_dim: 128
+    num_unknown_prototypes: 10
+    # Adaptive threshold (replaces static -20)
+    # Uses running statistics: threshold = mean(E) + k * std(E)
+    adaptive_k: 2.0          # k-sigma above mean = unknown
+    warmup_frames: 200        # frames to collect before threshold is active
+    momentum: 0.99            # EMA for running stats
+
+  # Continual learner
+  continual:
+    prompt_dim: 256
+    min_unknown_samples: 5    # trigger new class after N confirmed unknowns
+    synthetic_samples_per_class: 50
+    replay_epochs: 10
+    replay_lr: 1.0e-4
+    # Thermal diffusion memory (feature-space, NOT pixel-space)
+    memory_type: "feature"    # "feature" = replay in feature space (no diffusion model needed)
+    memory_bank_size: 200     # stored feature vectors per known class
+
+# ── Training
+train:
+  epochs: 50
+  batch_size: 8
+  num_workers: 4
+  img_size: 640
+  optimizer: "adamw"
+  lr: 2.0e-5
+  weight_decay: 1.0e-3
+  lr_scheduler: "cosine"
+  warmup_epochs: 3
+  grad_clip: 10.0
+  amp: true                   # mixed precision
+  frame_stride: 10 
+
+  # Continual learning incremental schedule
+  # After base training, simulate incremental class discovery
+  incremental_schedule:
+    enabled: false            # enable for continual learning experiments
+    base_epochs: 30           # train on known classes first
+    increment_every: 5        # epochs between increments
+
+# ── Loss weights
+loss:
+  detection: 1.0
+  energy_reg: 0.1             # energy regularization on known vs unknown
+  consistency: 0.5            # TTA consistency loss
+
+# ── Evaluation
+eval:
+  iou_threshold: 0.5
+  conf_threshold: 0.25
+  nms_threshold: 0.45
+  # For forgetting rate: re-evaluate on seen datasets after each increment
+  eval_forgetting: true
+
+# ── Efficiency benchmarking
+efficiency:
+  measure_fps: true
+  fps_warmup_iters: 50
+  fps_eval_iters: 200
+  measure_gflops: true
+  input_size: [1, 1, 640, 640]  # batch, channels, H, W (1-ch thermal)
+
+# ── Logging
+logging:
+  log_every: 20               # log every N iterations
+  save_every: 5               # save checkpoint every N epochs
+  keep_last_n: 3              # keep only last N checkpoints
+
+# ── CST-Anti-UAV (test-time evaluation only — not used for training)
+cst_dataset:
+  root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/CST-AntiUAV/CST-AntiUAV"
+  frame_stride: 1          # 1 = all frames for final test evaluation
+  conf_threshold: 0.25
+  nms_threshold: 0.45
+  max_dets: 5
+  iou_threshold: 0.5
+
+# ── JTDUAV / MM-AntiUAV (swarm detection — TTA evaluation only)
+jtduav_dataset:
+  root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/MM-AntiUAV-Yolo"
+  frame_stride: 1
+  conf_threshold: 0.05
+  nms_threshold: 0.35
+  max_dets: 100       # multiple drones per frame — higher than CST
+
+  

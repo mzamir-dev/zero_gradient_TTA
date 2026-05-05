@@ -1,0 +1,42 @@
+# ============================================================
+# CST-Anti-UAV Config — TTA Cross-Dataset Evaluation
+# ============================================================
+# Inherits base.yaml, overrides dataset paths and eval settings
+
+_base_: "base.yaml"
+
+tta_datasets:
+  # Full test set (all scene categories combined)
+  - name: "cst_antiuav_full"
+    root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/CST-AntiUAV"
+    format: "cst"
+    split: "test"
+    scene: "all"
+
+  # Per-scene evaluation (each is a separate TTA task)
+  - name: "cst_mountain"
+    root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/CST-AntiUAV"
+    format: "cst"
+    split: "test"
+    scene: "mountain"
+
+  - name: "cst_water"
+    root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/CST-AntiUAV"
+    format: "cst"
+    split: "test"
+    scene: "water"
+
+  - name: "cst_snow"
+    root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/CST-AntiUAV"
+    format: "cst"
+    split: "test"
+    scene: "snow"
+
+# TTA-specific settings
+tta_eval:
+  # How many frames the model adapts before evaluation begins
+  adaptation_frames: 10       # measure "adaptation speed" metric
+  # Reset adapter between scenes (simulate independent deployments)
+  reset_between_scenes: true
+  # Metrics to compute per scene
+  per_scene_metrics: true
