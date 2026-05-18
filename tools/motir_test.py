@@ -155,11 +155,172 @@ class MOTIREvaluator:
                 "delta": round(v_tta - v_base, 4)
             }
         results["comparison"] = comparison
+
+        # ── Unknown Recall evaluation
+        print("\n  Computing Unknown Recall (multi-UAV = unknown)...")
+        unknown_no_tta = self._evaluate_unknown_recall(dataset, use_tta=False)
+        unknown_tta    = self._evaluate_unknown_recall(dataset, use_tta=True)
+
+        results["unknown_recall_evaluation"] = {
+            "no_tta": unknown_no_tta,
+            "tta":    unknown_tta,
+            "protocol": (
+                "Multi-UAV frames (num_uavs > 1) treated as unknown. "
+                "Model trained on single-UAV data so multi-drone "
+                "configurations are genuinely novel."
+            ),
+            "comparison": {
+                "unknown_recall": {
+                    "no_tta": unknown_no_tta["unknown_recall"],
+                    "tta":    unknown_tta["unknown_recall"],
+                    "delta":  round(unknown_tta["unknown_recall"] -
+                                unknown_no_tta["unknown_recall"], 4),
+                },
+                "false_positive_rate": {
+                    "no_tta": unknown_no_tta["false_positive_rate"],
+                    "tta":    unknown_tta["false_positive_rate"],
+                    "delta":  round(unknown_tta["false_positive_rate"] -
+                                unknown_no_tta["false_positive_rate"], 4),
+                },
+            }
+        }
         self._print_comparison(comparison)
         self._save(results)
 
         self.model.disable_tta()
         return results
+    
+    def _evaluate_unknown_recall(
+    self,
+    dataset: MOTIRDataset,
+    use_tta: bool,
+    ) -> Dict:
+        """
+        Compute Unknown Recall using multi-UAV frames as unknown ground truth.
+        
+        Rationale: Model trained on single-UAV data. Multi-UAV frames
+        represent novel configurations → genuinely unknown to the model.
+        
+        Metrics:
+        unknown_recall    = correctly flagged unknown / total unknown frames
+        false_positive_rate = known frames incorrectly flagged as unknown
+        unknown_precision = flagged unknown that are actually unknown
+        """
+        unknown_indices = []
+        known_indices   = []
+
+        for seq, indices in dataset.get_sequence_indices().items():
+            for i in indices:
+                if dataset.samples[i]["num_uavs"] > 1:
+                    unknown_indices.append(i)
+                else:
+                    known_indices.append(i)
+
+        if not unknown_indices:
+            print("  [Unknown Recall] No multi-UAV frames found — "
+                "cannot compute unknown recall for this dataset.")
+            return {
+                "unknown_recall":        0.0,
+                "false_positive_rate":   0.0,
+                "unknown_precision":     0.0,
+                "unknown_F1":            0.0,
+                "num_unknown_frames":    0,
+                "num_known_frames":      len(known_indices),
+                "note": "All sequences have single UAV — no unknown frames",
+            }
+
+        print(f"\n  [Unknown Recall] "
+            f"Unknown frames (multi-UAV): {len(unknown_indices)} | "
+            f"Known frames (single-UAV): {len(known_indices)}")
+
+        self.model.eval()
+        if use_tta:
+            self.model.enable_tta()
+        else:
+            self.model.disable_tta()
+
+        true_positives  = 0   # unknown frame correctly flagged
+        false_negatives = 0   # unknown frame missed
+        false_positives = 0   # known frame incorrectly flagged
+        true_negatives  = 0   # known frame correctly not flagged
+
+        def check_frame(idx, expect_unknown):
+            img_t, tgt = dataset[idx]
+            img_input  = img_t.unsqueeze(0).to(self.device)
+
+            if use_tta:
+                raw_output = self.model(img_input, targets=None)
+            else:
+                with torch.no_grad():
+                    raw_output = self.model(img_input, targets=None)
+
+            # is_unknown is [N] bool tensor from RES module
+            is_unknown_tensor = raw_output.get("is_unknown", None)
+
+            if is_unknown_tensor is None or is_unknown_tensor.numel() == 0:
+                predicted_unknown = False
+            else:
+                # Frame is predicted unknown if ANY detection is flagged unknown
+                predicted_unknown = bool(is_unknown_tensor.any().item())
+
+            return predicted_unknown
+
+        # Evaluate unknown frames
+        for idx in unknown_indices:
+            predicted_unknown = check_frame(idx, expect_unknown=True)
+            if predicted_unknown:
+                true_positives  += 1
+            else:
+                false_negatives += 1
+
+        # Evaluate known frames (false positive rate)
+        # Sample max 500 known frames for efficiency
+        import random
+        sample_known = random.sample(
+            known_indices, min(500, len(known_indices))
+        )
+        for idx in sample_known:
+            predicted_unknown = check_frame(idx, expect_unknown=False)
+            if predicted_unknown:
+                false_positives += 1
+            else:
+                true_negatives  += 1
+
+        # Compute metrics
+        total_unknown    = len(unknown_indices)
+        total_known_eval = len(sample_known)
+
+        unknown_recall = true_positives / max(total_unknown, 1)
+        fpr            = false_positives / max(total_known_eval, 1)
+        precision      = true_positives / max(true_positives + false_positives, 1)
+        f1             = (2 * precision * unknown_recall /
+                        max(precision + unknown_recall, 1e-6))
+
+        result = {
+            "unknown_recall":        round(unknown_recall, 4),
+            "false_positive_rate":   round(fpr, 4),
+            "unknown_precision":     round(precision, 4),
+            "unknown_F1":            round(f1, 4),
+            "num_unknown_frames":    total_unknown,
+            "num_known_frames":      len(known_indices),
+            "num_known_evaluated":   total_known_eval,
+            "true_positives":        true_positives,
+            "false_negatives":       false_negatives,
+            "false_positives":       false_positives,
+            "true_negatives":        true_negatives,
+            "threshold_info":        self.model.energy_detector.get_threshold_info(),
+        }
+
+        print(f"  [Unknown Recall] Results:")
+        print(f"    Unknown Recall (UR)  : {unknown_recall:.4f}")
+        print(f"    False Positive Rate  : {fpr:.4f}")
+        print(f"    Unknown Precision    : {precision:.4f}")
+        print(f"    Unknown F1           : {f1:.4f}")
+        print(f"    True Positives       : {true_positives}/{total_unknown}")
+        print(f"    Threshold info       : {result['threshold_info']}")
+
+        self.model.disable_tta()
+        return result
 
     def _evaluate_full(self, dataset, use_tta):
         loader = DataLoader(
@@ -202,7 +363,7 @@ class MOTIREvaluator:
             gt_boxes_b  = [t["boxes"].cpu().numpy() for t in targets]
             gt_labels_b = [t["labels"].cpu().numpy() for t in targets]
             unk_gt_b    = [
-                (t["labels"].cpu().numpy() >= self.num_classes).astype(int)
+                np.array([1] if t.get("num_uavs", 1) > 1 else [0])
                 for t in targets
             ]
             metrics_acc.update(
@@ -503,15 +664,17 @@ def main():
     )
 
     results["efficiency"] = {
-        "fps":                    fps,
-        "gflops":                 gflops,
-        "total_params_M":         params["total_params_M"],
-        "trainable_params_M":     params["trainable_params_M"],
-        "tta_forward_gflops":     tta_flops["tta_forward_gflops"],
-        "tta_backward_gflops":    tta_flops["tta_backward_gflops"],
-        "tta_total_gflops":       tta_flops["tta_total_gflops"],
-        "tta_adapter_only_gflops": tta_flops["tta_adapter_only_gflops"],
-        "backward_note":          tta_flops["backward_note"],
+        "fps":                      fps,
+        "gflops_per_frame":         gflops,
+        "total_params_M":           params["total_params_M"],
+        "trainable_params_M":       params["trainable_params_M"],
+        "tta_per_frame_fwd":        tta_flops.get("per_frame_tta_fwd_gflops", gflops),
+        "tta_per_frame_bwd":        tta_flops.get("per_frame_bwd_gflops", 0.0),
+        "tta_per_frame_total":      tta_flops.get("per_frame_total_gflops", gflops),
+        "dtta_overhead_gflops":     tta_flops.get("per_frame_dtta_overhead", 0.01088),
+        "backward_note":            tta_flops.get("backward_note", "DC-TTA gradient-free"),
+        "cumulative":               tta_flops.get("cumulative", {}),
+        "method_comparison":        tta_flops.get("comparison", {}),
     }
     with open(output_path, "w") as f:
         json.dump(results, f, indent=2)

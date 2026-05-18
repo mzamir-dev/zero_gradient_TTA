@@ -39,7 +39,7 @@ class FeatureConstraintProjector(nn.Module):
         self,
         feature_dim: int = 256,
         use_mahalanobis: bool = False,
-        clip_alpha: float = 3.0,
+        clip_alpha: float = 2.0,
         eps: float = 1e-6,
     ):
         super().__init__()

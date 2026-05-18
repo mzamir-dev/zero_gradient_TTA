@@ -12,38 +12,38 @@ experiment:
 # ── Datasets used for training
 train_datasets:
   - name: "antiuav"
-    root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/Anti-UAV-Yolo"
+    root: "/media//Anti-UAV-Yolo"
     format: "yolo"
     split: "train"
     frame_stride: 10
 
   - name: "antiuav410"
-    root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/Anti-UAV410"
+    root: "/media/Anti-UAV410"
     format: "antiuav410"
     split: "train"
     frame_stride: 10
 
   - name: "cst_antiuav"
-    root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/CST-AntiUAV/CST-AntiUAV"
+    root: "/media//CST-AntiUAV/CST-AntiUAV"
     format: "cst"
     split: "train"
     frame_stride: 10
 
 val_datasets:
   - name: "antiuav"
-    root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/Anti-UAV-Yolo"
+    root: "/media//Anti-UAV-Yolo"
     format: "yolo"
     split: "val"
     frame_stride: 10
 
   - name: "antiuav410"
-    root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/Anti-UAV410"
+    root: "/media//Anti-UAV410"
     format: "antiuav410"
     split: "val"
     frame_stride: 10
 
   - name: "cst_antiuav"
-    root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/CST-AntiUAV/CST-AntiUAV"
+    root: "/media//CST-AntiUAV/CST-AntiUAV"
     format: "cst"
     split: "val"
     frame_stride: 10
@@ -94,7 +94,7 @@ model:
 
 # ── Training
 train:
-  epochs: 50
+  epochs: 100
   batch_size: 8
   num_workers: 4
   img_size: 640
@@ -125,7 +125,6 @@ eval:
   iou_threshold: 0.5
   conf_threshold: 0.25
   nms_threshold: 0.45
-  # For forgetting rate: re-evaluate on seen datasets after each increment
   eval_forgetting: true
 
 # ── Efficiency benchmarking
@@ -144,18 +143,18 @@ logging:
 
 # ── CST-Anti-UAV (test-time evaluation only — not used for training)
 cst_dataset:
-  root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/CST-AntiUAV/CST-AntiUAV"
+  root: "/media/CST-AntiUAV/CST-AntiUAV"
   frame_stride: 1          # 1 = all frames for final test evaluation
-  conf_threshold: 0.25
-  nms_threshold: 0.45
+  conf_threshold: 0.35
+  nms_threshold: 0.50
   max_dets: 5
   iou_threshold: 0.5
 
 # ── JTDUAV / MM-AntiUAV (swarm detection — TTA evaluation only)
 jtduav_dataset:
-  root: "/media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/MM-AntiUAV-Yolo"
+  root: "/media//MM-AntiUAV-Yolo"
   frame_stride: 1
-  conf_threshold: 0.05
+  conf_threshold: 0.35
   nms_threshold: 0.35
   max_dets: 100       # multiple drones per frame — higher than CST
 

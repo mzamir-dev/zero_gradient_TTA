@@ -90,8 +90,8 @@ def main():
             scheduler=trainer.scheduler,
             device=str(trainer.device),
         )
-    trainer.start_epoch = start_epoch + 1  # continue from next epoch
-    print(f"[Resume] Continuing from epoch {trainer.start_epoch}")
+        trainer.start_epoch = start_epoch + 1  # continue from next epoch
+        print(f"[Resume] Continuing from epoch {trainer.start_epoch}")
     
     trainer.train()
 

@@ -48,7 +48,7 @@ class RelativeEnergySeparation(nn.Module):
         feature_dim: int = 256,
         hidden_dim: int = 128,         # kept for interface compatibility
         num_unknown_prototypes: int = 10,
-        adaptive_k: float = 2.0,       # k-sigma for adaptive threshold
+        adaptive_k: float = 0.5,       # k-sigma for adaptive threshold
         warmup_frames: int = 200,
         momentum: float = 0.99,
         use_margin: bool = True,        # enable margin-based ambiguity detection

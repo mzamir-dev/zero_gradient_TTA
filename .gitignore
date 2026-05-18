@@ -164,6 +164,9 @@ wandb/
 .DS_Store
 *.pkl
 *.parquet
+cmd.txt
+tta_adapter_old.py
+old_energy_detector.py
 
 # Neural Network weights -----------------------------------------------------------------------------------------------
 weights/
@@ -206,6 +209,8 @@ calibration_*.npy
 *.bmp
 *.tiff
 *.gif
+*.jsonl
+*.json
 *.svg
 *.webp
 *.heic

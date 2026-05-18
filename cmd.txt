@@ -26,4 +26,3 @@ python tools/antiuav600_test.py \
 #Anti-MUAV15
 python tools/motir_test.py --config configs/base.yaml     --root /media/zamir/267a161c-11fb-45e4-86b4-b11cba0972ac/MOT_IR_sequences --checkpoint outputs/best_model.pth --tta_only
 
-
