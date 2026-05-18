@@ -164,7 +164,7 @@ wandb/
 .DS_Store
 *.pkl
 *.parquet
-cmd.txt
+.cmd.txt
 tta_adapter_old.py
 old_energy_detector.py
 
