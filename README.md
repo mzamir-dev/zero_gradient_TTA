@@ -13,10 +13,9 @@ pip install -r requirements.txt
 
 We currently support [**AntiUAV-MUAV15**](https://github.com/Shihan0325/Anti-MUAV15), [**TDUAV**](https://huggingface.co/datasets/yifwang/MM-AntiUAV/tree/main), [**CST-AntiUAV**](https://github.com/PCwenyue/CST-Anti-UAV/blob/main/README.md), and [**Anti-UAV600**](https://github.com/xuefeng-zhu5/EDTC) datasets. Follow the instructions below to prepare datasets.
 
-* **Dataset - preprocessing**: Simply downlaod the dataset and paste the dataset path in the config/base.yaml file.
-  Make sure the path for dataset videos and annotations are correct. You can change the dataset bounding box format from the [**data**](https://github.com/Muhammad-Zamir/zero_gradient_TTA/tree/main/data)
-  For TD-UAV dataset extract the frames from the videos and convert dataset into yolo format,
-## Implementation
+* **Dataset - preprocessing**: Simply download the dataset and specify its path in the [**config**](https://github.com/Muhammad-Zamir/zero_gradient_TTA/blob/main/configs/base.ya) file.
+  Ensure that the paths to the dataset videos and annotation files are correct. You can modify the bounding box format for the dataset from the [**data**](https://github.com/Muhammad-Zamir/zero_gradient_TTA/tree/main/data) directory.
+For the TD-UAV dataset, first extract the video frames and then convert the dataset into YOLO format.”## Implementation
 
 ### Phase 1: Train on Anti-UAV + Anti-UAV410
 ```bash
@@ -37,4 +36,4 @@ python tools/tta_cst.py --config configs/base.yaml --tta_only
 python tools/motir_test.py --config configs/base.yaml --tta_only
 ```
 ### Contact dettails:
-If you face any problem while running this code you can reach my via my personal email. Email address and others contact details are mentioned in my public github profile page. 
+If you encounter any issues while running this code, feel free to contact me via my personal email. My email address and other contact details are available on my public GitHub profile page.
