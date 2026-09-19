@@ -1,4 +1,4 @@
-# Zero gradient Test-Time Adaptation for Open-World Anti-UAV Detection
+# Zero gradient Test-Time Adaptation for Anti-UAV Detection
 ## Installation
 
 [**Python>=3.10.0**](https://www.python.org/) is required 
